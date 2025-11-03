@@ -23,6 +23,42 @@ app.get('/health', (req, res) => {
 
 // Create user
 app.post('/api/user/create', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  try {
+    const { name, email, exam_target } = req.body;
+    
+    console.log('Creating user:', name, email);
+    
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email required' });
+    }
+    
+    const result = await client.query(
+      'INSERT INTO users (name, email, exam_target, preparation_stage, check_in_time) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [name, email, exam_target || 'NEET PG', 'Beginner', '07:00']
+    );
+    
+    const userId = result.rows[0].id;
+    console.log('User created with ID:', userId);
+    
+    // Insert into user_stats
+    try {
+      await client.query(
+        'INSERT INTO user_stats (user_id) VALUES ($1)',
+        [userId]
+      );
+    } catch (statsErr) {
+      console.log('Stats insert error (non-critical):', statsErr.message);
+    }
+    
+    res.json({ success: true, user_id: userId });
+  } catch (error) {
+    console.error('❌ Create user error:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
   try {
     const { name, email, exam_target } = req.body;
     const userId = 'user_' + Date.now();
