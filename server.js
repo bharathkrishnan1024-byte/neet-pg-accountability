@@ -75,30 +75,52 @@ app.post('/api/user/create', async (req, res) => {
 
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
   try {
     const { user_id, message } = req.body;
     
-    if (!conversations[user_id]) {
-      conversations[user_id] = [];
+    if (!user_id || !message) {
+      return res.status(400).json({ error: 'user_id and message required' });
     }
     
+    console.log('Chat from user:', user_id, 'Message:', message);
+    
     // Save user message
-    conversations[user_id].push({ sender: 'user', content: message });
+    await client.query(
+      'INSERT INTO conversations (user_id, sender, content) VALUES ($1, $2, $3)',
+      [user_id, 'user', message]
+    );
+    
+    // Get recent history
+    const history = await client.query(
+      'SELECT sender, content FROM conversations WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 10',
+      [user_id]
+    );
+    
+    // Build prompt
+    let chatHistory = history.rows.reverse().map(r => `${r.sender}: ${r.content}`).join('\n');
+    
+    const prompt = `You are a NEET PG accountability coach. Be supportive but firm. Keep responses under 100 words.\n\nConversation:\n${chatHistory}\n\nRespond to the last user message with coaching feedback.`;
     
     // Get AI response
-    const response = await model.generateContent(message);
-    const aiText = response.response.text();
+    const result = await model.generateContent(prompt);
+    const aiResponse = result.response.text();
     
-    // Save AI message
-    conversations[user_id].push({ sender: 'ai', content: aiText });
+    // Save AI response
+    await client.query(
+      'INSERT INTO conversations (user_id, sender, content) VALUES ($1, $2, $3)',
+      [user_id, 'ai', aiResponse]
+    );
     
-    console.log('Chat message saved');
-    res.json({ success: true, response: aiText });
+    console.log('Chat saved, response:', aiResponse.substring(0, 50));
+    
+    res.json({ success: true, response: aiResponse });
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('❌ Chat error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Get history
 app.get('/api/chat/history/:user_id', (req, res) => {
