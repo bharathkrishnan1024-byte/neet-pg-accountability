@@ -1,0 +1,17 @@
+{
+  "name": "neet-pg-backend",
+  "version": "1.0.0",
+  "description": "NEET PG Accountability AI Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "pg": "^8.9.0",
+    "@google/generative-ai": "^0.1.3"
+  }
+}
